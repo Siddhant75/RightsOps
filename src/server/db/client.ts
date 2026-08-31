@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 
 import type { DemoWorkflowState } from "@/server/seed/demo-scenario";
+import { withTransientDatabaseReadRetry } from "@/server/db/database-retry";
 import { demoWorkflowStates } from "@/server/db/schema";
 
 export interface WorkflowRepository {
@@ -33,11 +34,13 @@ export class DrizzleWorkflowRepository implements WorkflowRepository {
   constructor(private readonly database: Database) {}
 
   async read(): Promise<DemoWorkflowState | null> {
-    const [row] = await this.database
-      .select({ state: demoWorkflowStates.state })
-      .from(demoWorkflowStates)
-      .where(eq(demoWorkflowStates.id, WORKFLOW_ID))
-      .limit(1);
+    const [row] = await withTransientDatabaseReadRetry(() =>
+      this.database
+        .select({ state: demoWorkflowStates.state })
+        .from(demoWorkflowStates)
+        .where(eq(demoWorkflowStates.id, WORKFLOW_ID))
+        .limit(1),
+    );
     return row ? structuredClone(row.state) : null;
   }
 
@@ -65,14 +68,16 @@ export class DrizzleWorkflowRepository implements WorkflowRepository {
     mutation: (state: DemoWorkflowState) => T | Promise<T>,
   ): Promise<T> {
     for (let attempt = 0; attempt < MAX_WRITE_ATTEMPTS; attempt += 1) {
-      const [current] = await this.database
-        .select({
-          revision: demoWorkflowStates.revision,
-          state: demoWorkflowStates.state,
-        })
-        .from(demoWorkflowStates)
-        .where(eq(demoWorkflowStates.id, WORKFLOW_ID))
-        .limit(1);
+      const [current] = await withTransientDatabaseReadRetry(() =>
+        this.database
+          .select({
+            revision: demoWorkflowStates.revision,
+            state: demoWorkflowStates.state,
+          })
+          .from(demoWorkflowStates)
+          .where(eq(demoWorkflowStates.id, WORKFLOW_ID))
+          .limit(1),
+      );
       if (!current) {
         throw new Error("Demo workflow has not been initialized");
       }
