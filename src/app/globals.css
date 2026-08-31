@@ -1,0 +1,387 @@
+:root {
+  color-scheme: dark;
+  --bg: #11110f;
+  --panel: #1a1a16;
+  --panel-raised: #21211b;
+  --line: #3b3a31;
+  --text: #f3f0e4;
+  --muted: #aaa797;
+  --acid: #d9f769;
+  --amber: #f7bd69;
+  --red: #ff806e;
+  --blue: #8ccfff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(217, 247, 105, 0.08), transparent 30rem),
+    var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", Inter, system-ui, sans-serif;
+}
+
+button,
+code {
+  font: inherit;
+}
+
+button:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+
+.spike-shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 52px 0 72px;
+}
+
+.spike-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 36px;
+  margin-bottom: 28px;
+}
+
+.eyebrow,
+.panel-kicker {
+  margin: 0 0 8px;
+  color: var(--acid);
+  font: 700 0.76rem/1.2 ui-monospace, "Cascadia Code", monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  max-width: 780px;
+  margin-bottom: 16px;
+  font-size: clamp(2.5rem, 6vw, 5.8rem);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+  line-height: 0.94;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 1.45rem;
+  letter-spacing: -0.025em;
+}
+
+.lede {
+  max-width: 740px;
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 1.02rem;
+  line-height: 1.65;
+}
+
+code {
+  color: var(--acid);
+  font-family: ui-monospace, "Cascadia Code", monospace;
+}
+
+.availability {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.availability span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.availability--available span {
+  background: var(--acid);
+  box-shadow: 0 0 16px rgba(217, 247, 105, 0.55);
+}
+
+.availability--unavailable span,
+.availability--error span {
+  background: var(--red);
+}
+
+.compatibility {
+  display: flex;
+  gap: 12px 22px;
+  border: 1px solid rgba(247, 189, 105, 0.45);
+  background: rgba(247, 189, 105, 0.08);
+  margin-bottom: 20px;
+  padding: 15px 18px;
+  color: #e5dec9;
+}
+
+.compatibility strong {
+  flex: 0 0 auto;
+  color: var(--amber);
+}
+
+.compatibility--error {
+  border-color: rgba(255, 128, 110, 0.45);
+  background: rgba(255, 128, 110, 0.08);
+}
+
+.compatibility--error strong {
+  color: var(--red);
+}
+
+.spike-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr);
+  gap: 16px;
+}
+
+.panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: linear-gradient(145deg, var(--panel-raised), var(--panel));
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+}
+
+.panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.state-seal,
+.tool-kind,
+.event-source {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: var(--muted);
+  font: 700 0.65rem/1 ui-monospace, "Cascadia Code", monospace;
+  letter-spacing: 0.08em;
+}
+
+.state-seal--approved {
+  border-color: rgba(217, 247, 105, 0.5);
+  color: var(--acid);
+}
+
+.state-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 0 0 24px;
+  background: var(--line);
+}
+
+.state-metrics div {
+  background: var(--panel);
+  padding: 15px;
+}
+
+.state-metrics dt {
+  color: var(--muted);
+  font-size: 0.77rem;
+}
+
+.state-metrics dd {
+  margin: 5px 0 0;
+  font: 650 1.7rem/1 ui-monospace, "Cascadia Code", monospace;
+}
+
+.button {
+  width: 100%;
+  border: 0;
+  background: var(--acid);
+  padding: 14px 18px;
+  color: #14150d;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.button--revoke {
+  background: var(--red);
+}
+
+.button:disabled,
+.text-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.text-button {
+  border: 0;
+  background: transparent;
+  padding: 4px 0;
+  color: var(--blue);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.microcopy,
+.source-note,
+.empty-state {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.microcopy {
+  margin: 14px 0 0;
+}
+
+.source-note {
+  margin: 18px 0 0;
+}
+
+.tool-list,
+.event-list,
+.probe-steps {
+  margin: 0;
+}
+
+.tool-list,
+.event-list {
+  padding: 0;
+  list-style: none;
+}
+
+.tool-list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  border-top: 1px solid var(--line);
+  padding: 16px 0;
+}
+
+.tool-list li:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.tool-list li div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.tool-list li code {
+  overflow-wrap: anywhere;
+}
+
+.tool-list li div span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.tool-kind {
+  flex: 0 0 auto;
+}
+
+.events-panel {
+  grid-column: 1 / -1;
+}
+
+.event-list li {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 84px;
+  gap: 14px;
+  align-items: baseline;
+  border-top: 1px solid var(--line);
+  padding: 11px 0;
+}
+
+.event-list p {
+  margin: 0;
+  color: #d9d6c8;
+  font-size: 0.86rem;
+}
+
+.event-list time {
+  color: var(--muted);
+  font: 0.72rem/1 ui-monospace, "Cascadia Code", monospace;
+  text-align: right;
+}
+
+.event-source {
+  justify-self: start;
+  text-transform: uppercase;
+}
+
+.event-source--toolchange {
+  color: var(--blue);
+}
+
+.event-source--registry {
+  color: var(--acid);
+}
+
+.probe-panel {
+  grid-column: 1 / -1;
+}
+
+.probe-steps {
+  display: grid;
+  gap: 10px;
+  padding-left: 22px;
+  color: #d9d6c8;
+  line-height: 1.5;
+}
+
+@media (max-width: 780px) {
+  .spike-shell {
+    width: min(100% - 24px, 680px);
+    padding-top: 28px;
+  }
+
+  .spike-header,
+  .compatibility {
+    flex-direction: column;
+  }
+
+  .spike-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .events-panel,
+  .probe-panel {
+    grid-column: auto;
+  }
+
+  .event-list li {
+    grid-template-columns: 1fr auto;
+  }
+
+  .event-list p {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
