@@ -14,7 +14,7 @@ const reviewManifest: CampaignManifest = {
   assetIds: ["asset-a"],
   campaignId: "campaign-1",
   id: "manifest-1",
-  manifestHash: "manifest-hash",
+  manifestHash: "7edbacfe22882b4d8f9ac60b9fc416677d99aef610ffa55bc44cebf47e6eabef",
   proofs: [
     {
       assetId: "asset-a",
@@ -52,6 +52,15 @@ describe("manifest approval invariants", () => {
     ).toThrow("Manifest is not review-ready: STALE");
   });
 
+  it("rejects approval when manifest contents do not match its hash", () => {
+    expect(() =>
+      approveManifest(
+        { ...reviewManifest, assetIds: ["asset-b"] },
+        "2026-08-31T13:00:00.000Z",
+      ),
+    ).toThrow("Manifest hash does not match manifest contents");
+  });
+
   it("binds approval to the exact manifest hash", () => {
     const approved = approveManifest(
       reviewManifest,
@@ -60,7 +69,8 @@ describe("manifest approval invariants", () => {
 
     expect(approved).toMatchObject({
       approvedAt: "2026-08-31T13:00:00.000Z",
-      approvedManifestHash: "manifest-hash",
+      approvedManifestHash:
+        "7edbacfe22882b4d8f9ac60b9fc416677d99aef610ffa55bc44cebf47e6eabef",
       status: "APPROVED",
     });
     expect(() =>
@@ -95,6 +105,20 @@ describe("manifest approval invariants", () => {
         new Map([["asset-a", 3]]),
       ),
     ).toThrow("Approved manifest hash does not match current manifest");
+  });
+
+  it("rejects publication when contents change without updating the hash", () => {
+    const approved = approveManifest(
+      reviewManifest,
+      "2026-08-31T13:00:00.000Z",
+    );
+
+    expect(() =>
+      assertManifestPublishable(
+        { ...approved, assetIds: ["asset-b"] },
+        new Map([["asset-a", 3]]),
+      ),
+    ).toThrow("Manifest hash does not match manifest contents");
   });
 
   it("prevents a consumed approval from publishing twice", () => {

@@ -1,5 +1,19 @@
 import type { CampaignManifest } from "@/domain/types";
+import { hashCampaignManifest } from "@/domain/campaign/manifest";
 import { isRightsProofFresh } from "@/domain/rights/proof";
+
+export function assertManifestHashMatchesContents(
+  manifest: CampaignManifest,
+): void {
+  const currentHash = hashCampaignManifest({
+    assetIds: manifest.assetIds,
+    campaignId: manifest.campaignId,
+    proofs: manifest.proofs,
+  });
+  if (currentHash !== manifest.manifestHash) {
+    throw new Error("Manifest hash does not match manifest contents");
+  }
+}
 
 export function assertManifestPublishable(
   manifest: CampaignManifest,
@@ -11,6 +25,7 @@ export function assertManifestPublishable(
   if (manifest.approvedManifestHash !== manifest.manifestHash) {
     throw new Error("Approved manifest hash does not match current manifest");
   }
+  assertManifestHashMatchesContents(manifest);
 
   for (const proof of manifest.proofs) {
     const currentRightsVersion = currentRightsVersions.get(proof.assetId);

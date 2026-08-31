@@ -2,7 +2,10 @@ import type {
   CampaignManifest,
   CampaignStatus,
 } from "@/domain/types";
-import { assertManifestPublishable } from "@/domain/campaign/invariants";
+import {
+  assertManifestHashMatchesContents,
+  assertManifestPublishable,
+} from "@/domain/campaign/invariants";
 
 const LEGAL_CAMPAIGN_TRANSITIONS: Record<
   CampaignStatus,
@@ -32,6 +35,7 @@ export function approveManifest(
   if (manifest.status !== "REVIEW_READY") {
     throw new Error(`Manifest is not review-ready: ${manifest.status}`);
   }
+  assertManifestHashMatchesContents(manifest);
 
   return {
     ...manifest,

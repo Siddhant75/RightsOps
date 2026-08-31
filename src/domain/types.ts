@@ -49,6 +49,7 @@ export interface Campaign {
   commercialUse: boolean;
   startsAt: string;
   endsAt: string;
+  requiredAssetCount: number;
   status: CampaignStatus;
 }
 
@@ -76,4 +77,24 @@ export interface CampaignManifest {
   status: ManifestStatus;
   approvedAt: string | null;
   approvedManifestHash: string | null;
+}
+
+export interface PublishReceipt {
+  id: string;
+  manifestId: string;
+  campaignId: string;
+  publishedAssetIds: string[];
+  publishedAt: string;
+  receiptHash: string;
+}
+
+export type AuditActor = "HUMAN" | "AGENT" | "SYSTEM";
+
+export interface AuditEvent {
+  id: string;
+  kind: string;
+  actor: AuditActor;
+  summary: string;
+  entityId: string;
+  createdAt: string;
 }

@@ -12,6 +12,7 @@ const campaign: Campaign = {
   commercialUse: true,
   endsAt: "2027-03-01T00:00:00.000Z",
   id: "campaign-japan-social",
+  requiredAssetCount: 3,
   startsAt: "2026-09-01T00:00:00.000Z",
   status: "DRAFT",
   territory: "JP",
