@@ -38,10 +38,32 @@ export interface ModelContextLike {
   removeEventListener(type: "toolchange", listener: EventListener): void;
 }
 
+export type RegistryObservationKind =
+  | "registered"
+  | "toolchange"
+  | "unregistered";
+
+export interface RegistryObservation {
+  kind: RegistryObservationKind;
+  observedAt: string;
+  toolName: string | null;
+}
+
+export type RegistryObserver = (event: RegistryObservation) => void;
+
 export class WebMcpRegistry {
   private readonly registrations = new Map<string, AbortController>();
+  private readonly toolChangeListener: EventListener;
 
-  constructor(private readonly modelContext: ModelContextLike) {}
+  constructor(
+    private readonly modelContext: ModelContextLike,
+    private readonly observer: RegistryObserver = () => undefined,
+  ) {
+    this.toolChangeListener = () => {
+      this.observe("toolchange", null);
+    };
+    this.modelContext.addEventListener("toolchange", this.toolChangeListener);
+  }
 
   has(name: string): boolean {
     return this.registrations.has(name);
@@ -66,7 +88,9 @@ export class WebMcpRegistry {
     }
 
     try {
-      return await this.reconcile();
+      const observedTools = await this.reconcile();
+      this.observe("registered", tool.name);
+      return observedTools;
     } catch (error) {
       if (this.registrations.get(tool.name) === controller) {
         this.registrations.delete(tool.name);
@@ -82,6 +106,7 @@ export class WebMcpRegistry {
     if (controller) {
       controller.abort();
       this.registrations.delete(name);
+      this.observe("unregistered", name);
     }
 
     return this.reconcile();
@@ -92,10 +117,26 @@ export class WebMcpRegistry {
   }
 
   dispose(): void {
+    this.modelContext.removeEventListener(
+      "toolchange",
+      this.toolChangeListener,
+    );
+
     for (const controller of this.registrations.values()) {
       controller.abort();
     }
 
     this.registrations.clear();
+  }
+
+  private observe(
+    kind: RegistryObservationKind,
+    toolName: string | null,
+  ): void {
+    this.observer({
+      kind,
+      observedAt: new Date().toISOString(),
+      toolName,
+    });
   }
 }

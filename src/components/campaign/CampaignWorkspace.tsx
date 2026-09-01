@@ -6,6 +6,7 @@ import { AssetGrid } from "@/components/campaign/AssetGrid";
 import { AuditTimeline } from "@/components/campaign/AuditTimeline";
 import { AuthorizationSummary } from "@/components/campaign/AuthorizationSummary";
 import { CampaignBrief } from "@/components/campaign/CampaignBrief";
+import { CapabilitySurface } from "@/components/campaign/CapabilitySurface";
 import { DemoControls } from "@/components/campaign/DemoControls";
 import { ManifestReview } from "@/components/campaign/ManifestReview";
 import { PublishReceiptView } from "@/components/campaign/PublishReceiptView";
@@ -151,6 +152,11 @@ export function CampaignWorkspace({ campaignId }: CampaignWorkspaceProps) {
       <div className="workspace-layout">
         <div className="workspace-main">
           <AuthorizationSummary summary={authorization} />
+          <CapabilitySurface
+            authorization={authorization}
+            state={state}
+            tools={campaignTools}
+          />
           <AssetGrid
             assets={state.assets}
             campaign={state.campaign}

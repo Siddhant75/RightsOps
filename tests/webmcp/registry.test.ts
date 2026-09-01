@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   WebMcpRegistry,
+  type RegistryObservation,
   type ModelContextLike,
   type ModelContextTool,
   type RegisteredTool,
@@ -55,6 +56,37 @@ const readTool: ModelContextTool = {
 };
 
 describe("WebMcpRegistry", () => {
+  it("reports resolved registry operations separately from browser toolchange telemetry", async () => {
+    const context = new FakeModelContext();
+    const observations: RegistryObservation[] = [];
+    const registry = new WebMcpRegistry(context, (event) => {
+      observations.push(event);
+    });
+
+    context.dispatchEvent(new Event("toolchange"));
+    await registry.register(readTool);
+    await registry.unregister(readTool.name);
+
+    expect(observations.map(({ kind, toolName }) => ({ kind, toolName }))).toEqual([
+      { kind: "toolchange", toolName: null },
+      { kind: "registered", toolName: "get_spike_state" },
+      { kind: "unregistered", toolName: "get_spike_state" },
+    ]);
+  });
+
+  it("stops observing toolchange telemetry when disposed", () => {
+    const context = new FakeModelContext();
+    const observations: RegistryObservation[] = [];
+    const registry = new WebMcpRegistry(context, (event) => {
+      observations.push(event);
+    });
+
+    registry.dispose();
+    context.dispatchEvent(new Event("toolchange"));
+
+    expect(observations).toEqual([]);
+  });
+
   it("registers through an AbortSignal and reconciles from getTools", async () => {
     const context = new FakeModelContext();
     const registry = new WebMcpRegistry(context);

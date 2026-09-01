@@ -9,6 +9,8 @@ import {
   type ModelContextLike,
   type ModelContextTool,
   type RegisteredTool,
+  type RegistryObservation,
+  type RegistryObserver,
 } from "@/webmcp/registry";
 import {
   requestJson,
@@ -32,6 +34,13 @@ export interface CampaignToolsStatus {
   availability: CampaignToolsAvailability;
   error: string | null;
   observedTools: RegisteredTool[];
+  registryEvents: RegistryObservation[];
+  synchronizedSurfaceKey: string | null;
+  toolChangeEvents: RegistryObservation[];
+}
+
+export function getCampaignToolSurfaceKey(state: DemoWorkflowState): string {
+  return `${state.campaign.status}:${state.currentManifest?.id ?? "none"}`;
 }
 
 export function createCampaignToolsForState(
@@ -78,8 +87,9 @@ export class CampaignToolCoordinator {
   constructor(
     modelContext: ModelContextLike,
     private readonly dependencies: CampaignToolDependencies,
+    observer?: RegistryObserver,
   ) {
-    this.registry = new WebMcpRegistry(modelContext);
+    this.registry = new WebMcpRegistry(modelContext, observer);
   }
 
   synchronize(state: DemoWorkflowState): Promise<RegisteredTool[]> {
@@ -136,19 +146,29 @@ export function useCampaignTools(
     availability: "checking",
     error: null,
     observedTools: [],
+    registryEvents: [],
+    synchronizedSurfaceKey: null,
+    toolChangeEvents: [],
   });
 
   useEffect(() => {
+    let active = true;
     const modelContext = getModelContext();
     if (!modelContext) {
       queueMicrotask(() => {
+        if (!active) return;
         setStatus({
           availability: "unavailable",
           error: null,
           observedTools: [],
+          registryEvents: [],
+          synchronizedSurfaceKey: null,
+          toolChangeEvents: [],
         });
       });
-      return;
+      return () => {
+        active = false;
+      };
     }
 
     const dependencies: CampaignToolDependencies = {
@@ -168,10 +188,25 @@ export function useCampaignTools(
     const coordinator = new CampaignToolCoordinator(
       modelContext,
       dependencies,
+      (event) => {
+        if (!active) return;
+        setStatus((current) =>
+          event.kind === "toolchange"
+            ? {
+                ...current,
+                toolChangeEvents: [...current.toolChangeEvents, event].slice(-8),
+              }
+            : {
+                ...current,
+                registryEvents: [...current.registryEvents, event].slice(-8),
+              },
+        );
+      },
     );
     coordinatorRef.current = coordinator;
 
     return () => {
+      active = false;
       coordinator.dispose();
       coordinatorRef.current = null;
     };
@@ -186,19 +221,23 @@ export function useCampaignTools(
       .synchronize(state)
       .then((observedTools) => {
         if (!active) return;
-        setStatus({
+        setStatus((current) => ({
+          ...current,
           availability: "available",
           error: null,
           observedTools,
-        });
+          synchronizedSurfaceKey: getCampaignToolSurfaceKey(state),
+        }));
       })
       .catch((error: unknown) => {
         if (!active) return;
-        setStatus({
+        setStatus((current) => ({
+          ...current,
           availability: "error",
           error: formatError(error),
           observedTools: [],
-        });
+          synchronizedSurfaceKey: null,
+        }));
       });
 
     return () => {

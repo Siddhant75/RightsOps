@@ -15,6 +15,7 @@ import type {
   ModelContextLike,
   ModelContextTool,
   RegisteredTool,
+  RegistryObservation,
 } from "@/webmcp/registry";
 import {
   CampaignToolCoordinator,
@@ -267,6 +268,32 @@ describe("production WebMCP execution", () => {
 });
 
 describe("CampaignToolCoordinator", () => {
+  it("forwards registry operations and browser toolchange as observation only", async () => {
+    const context = new FakeModelContext();
+    const draft = createState("DRAFT");
+    const observations: RegistryObservation[] = [];
+    const coordinator = new CampaignToolCoordinator(
+      context,
+      createDependencies(draft),
+      (event) => observations.push(event),
+    );
+
+    await coordinator.synchronize(draft);
+    context.dispatchEvent(new Event("toolchange"));
+
+    expect(
+      observations
+        .filter((event) => event.kind === "registered")
+        .map((event) => event.toolName)
+        .sort(),
+    ).toEqual([...EXPECTED_ALWAYS, "prepare_campaign_manifest"].sort());
+    expect(observations.at(-1)).toMatchObject({
+      kind: "toolchange",
+      toolName: null,
+    });
+    expect(draft.campaign.status).toBe("DRAFT");
+  });
+
   it("reconciles approval, staleness, replacement approval, and publication", async () => {
     const context = new FakeModelContext();
     const draft = createState("DRAFT");

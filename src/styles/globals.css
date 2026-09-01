@@ -144,6 +144,7 @@
 .workspace-rail { display: grid; gap: 18px; min-width: 0; }
 
 .authorization,
+.capability-surface,
 .workspace-section,
 .manifest-panel,
 .demo-controls,
@@ -179,6 +180,66 @@
 .authorization-meter span { height: 11px; background: #30342c; }
 .authorization-meter .is-current { background: var(--ops-lime); }
 .authorization--blocked .authorization-meter .is-current { background: var(--ops-coral); }
+
+.capability-surface {
+  padding: 22px;
+  border-color: rgba(149, 216, 255, 0.42);
+  background:
+    linear-gradient(135deg, rgba(149, 216, 255, 0.08), transparent 44%),
+    linear-gradient(145deg, rgba(27, 30, 24, 0.96), rgba(17, 19, 16, 0.96));
+}
+
+.capability-heading { align-items: center; }
+
+.capability-live {
+  border: 1px solid var(--ops-line);
+  border-radius: 999px;
+  padding: 6px 8px;
+  color: var(--ops-muted);
+  font: 700 0.62rem/1 ui-monospace, "Cascadia Code", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.capability-live--available { border-color: rgba(217, 247, 105, 0.5); color: var(--ops-lime); }
+.capability-live--error { border-color: rgba(255, 123, 103, 0.6); color: var(--ops-coral); }
+
+.authority-story {
+  border-left: 4px solid var(--ops-muted);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 16px;
+}
+
+.authority-story--granted { border-left-color: var(--ops-lime); background: rgba(217, 247, 105, 0.07); }
+.authority-story--removed { border-left-color: var(--ops-coral); background: rgba(255, 123, 103, 0.09); }
+.authority-story p { margin-bottom: 7px; color: var(--ops-muted); font: 700 0.68rem/1 ui-monospace, "Cascadia Code", monospace; letter-spacing: 0.09em; text-transform: uppercase; }
+.authority-story strong { display: block; max-width: 780px; font-size: 1.02rem; line-height: 1.45; }
+
+.capability-facts {
+  display: grid;
+  grid-template-columns: 0.7fr 0.7fr 1.6fr;
+  margin: 14px 0;
+  border-top: 1px solid var(--ops-line);
+  border-left: 1px solid var(--ops-line);
+}
+
+.capability-facts div { min-width: 0; border-right: 1px solid var(--ops-line); border-bottom: 1px solid var(--ops-line); padding: 10px; }
+.capability-facts dt,
+.capability-evidence span { color: var(--ops-muted); font-size: 0.62rem; letter-spacing: 0.07em; text-transform: uppercase; }
+.capability-facts dd { margin: 6px 0 0; overflow-wrap: anywhere; font: 700 0.69rem/1.35 ui-monospace, "Cascadia Code", monospace; }
+
+.capability-tools ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.capability-tools li { display: flex; justify-content: space-between; gap: 12px; align-items: center; border: 1px solid var(--ops-line); background: #10120f; padding: 9px 10px; }
+.capability-tools code { overflow-wrap: anywhere; color: #dcebf3; font-size: 0.7rem; }
+.capability-tools li > span { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.capability-tools small { border: 1px solid rgba(149, 216, 255, 0.35); border-radius: 999px; padding: 4px 6px; color: var(--ops-sky); font: 650 0.55rem/1 ui-monospace, "Cascadia Code", monospace; text-transform: uppercase; }
+.capability-tools > p { margin-bottom: 0; color: var(--ops-muted); font-size: 0.78rem; }
+
+.capability-evidence { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.capability-evidence div { border-top: 1px solid var(--ops-line); padding-top: 10px; }
+.capability-evidence p,
+.capability-evidence ol { margin: 6px 0 0; color: var(--ops-muted); font-size: 0.7rem; line-height: 1.4; }
+.capability-evidence ol { display: grid; gap: 3px; padding-left: 16px; }
 
 .workspace-section,
 .manifest-panel,
@@ -369,6 +430,8 @@
   .workspace-layout { grid-template-columns: 1fr; }
   .campaign-brief { gap: 28px; padding-top: 42px; }
   .workspace-rail { grid-row: 1; }
+  .capability-facts,
+  .capability-evidence { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 540px) {
