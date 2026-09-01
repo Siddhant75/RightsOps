@@ -41,6 +41,18 @@ class MemoryWorkflowRepository implements WorkflowRepository {
   }
 }
 
+class FlakyResetWorkflowRepository extends MemoryWorkflowRepository {
+  resetAttempts = 0;
+
+  override async reset(state: DemoWorkflowState): Promise<void> {
+    this.resetAttempts += 1;
+    if (this.resetAttempts === 1) {
+      throw new Error("transient reset write failure");
+    }
+    await super.reset(state);
+  }
+}
+
 const NOW = "2026-08-31T14:00:00.000Z";
 const now = () => NOW;
 
@@ -57,6 +69,21 @@ describe("server-authoritative publish flow", () => {
     campaignService = new CampaignService(repository, now);
     demoService = new DemoService(repository, now);
     publishService = new PublishService(repository, now);
+  });
+
+  it("retries the idempotent one-action reset after a transient repository failure", async () => {
+    const flakyRepository = new FlakyResetWorkflowRepository();
+    const service = new DemoService(flakyRepository, now);
+
+    await expect(service.reset()).resolves.toMatchObject({
+      campaign: { id: CAMPAIGN_ID, status: "DRAFT" },
+      currentManifest: null,
+      publishReceipt: null,
+    });
+    expect(flakyRepository.resetAttempts).toBe(2);
+    await expect(flakyRepository.read()).resolves.toMatchObject({
+      campaign: { status: "DRAFT" },
+    });
   });
 
   it("rejects stale publication, accepts a replacement approval once, and rejects replay", async () => {

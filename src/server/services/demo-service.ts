@@ -1,5 +1,6 @@
 import type { Asset } from "@/domain/types";
 import type { WorkflowRepository } from "@/server/db/client";
+import { withTransientDatabaseRetry } from "@/server/db/database-retry";
 import {
   createDemoScenario,
   type DemoWorkflowState,
@@ -13,7 +14,7 @@ export class DemoService {
 
   async reset(): Promise<DemoWorkflowState> {
     const state = createDemoScenario(this.now());
-    await this.repository.reset(state);
+    await withTransientDatabaseRetry(() => this.repository.reset(state));
     return structuredClone(state);
   }
 

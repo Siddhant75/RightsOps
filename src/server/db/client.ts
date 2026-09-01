@@ -3,7 +3,10 @@ import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 
 import type { DemoWorkflowState } from "@/server/seed/demo-scenario";
-import { withTransientDatabaseReadRetry } from "@/server/db/database-retry";
+import {
+  withTransientDatabaseReadRetry,
+  withTransientDatabaseWriteRetry,
+} from "@/server/db/database-retry";
 import { demoWorkflowStates } from "@/server/db/schema";
 
 export interface WorkflowRepository {
@@ -84,20 +87,22 @@ export class DrizzleWorkflowRepository implements WorkflowRepository {
 
       const nextState = structuredClone(current.state);
       const result = await mutation(nextState);
-      const updated = await this.database
-        .update(demoWorkflowStates)
-        .set({
-          revision: current.revision + 1,
-          state: nextState,
-          updatedAt: new Date().toISOString(),
-        })
-        .where(
-          and(
-            eq(demoWorkflowStates.id, WORKFLOW_ID),
-            eq(demoWorkflowStates.revision, current.revision),
-          ),
-        )
-        .returning({ revision: demoWorkflowStates.revision });
+      const updated = await withTransientDatabaseWriteRetry(() =>
+        this.database
+          .update(demoWorkflowStates)
+          .set({
+            revision: current.revision + 1,
+            state: nextState,
+            updatedAt: new Date().toISOString(),
+          })
+          .where(
+            and(
+              eq(demoWorkflowStates.id, WORKFLOW_ID),
+              eq(demoWorkflowStates.revision, current.revision),
+            ),
+          )
+          .returning({ revision: demoWorkflowStates.revision }),
+      );
 
       if (updated.length === 1) return result;
     }
