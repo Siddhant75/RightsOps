@@ -59,6 +59,17 @@
 .wordmark { color: var(--ops-text); text-decoration: none; letter-spacing: 0.16em; }
 .topbar-state { display: flex; align-items: center; gap: 9px; }
 
+.topbar-statuses { display: flex; align-items: center; gap: 14px; }
+
+.webmcp-status {
+  border: 1px solid var(--ops-line);
+  border-radius: 999px;
+  padding: 6px 8px;
+}
+
+.webmcp-status--available { border-color: rgba(217, 247, 105, 0.5); color: var(--ops-lime); }
+.webmcp-status--error { border-color: rgba(255, 123, 103, 0.6); color: var(--ops-coral); }
+
 .status-light,
 .eligibility-dot {
   display: inline-block;
@@ -291,7 +302,8 @@
 .workspace-button--quiet { color: var(--ops-muted); font-size: 0.75rem; }
 
 .workspace-error,
-.workspace-progress {
+.workspace-progress,
+.webmcp-compatibility {
   margin-bottom: 18px;
   border: 1px solid rgba(255, 123, 103, 0.6);
   background: rgba(255, 123, 103, 0.1);
@@ -301,6 +313,8 @@
 }
 
 .workspace-progress { border-color: rgba(149, 216, 255, 0.5); background: rgba(149, 216, 255, 0.08); color: var(--ops-sky); }
+.webmcp-compatibility { border-color: rgba(149, 216, 255, 0.5); background: rgba(149, 216, 255, 0.08); color: #c7eaff; }
+.webmcp-compatibility--error { border-color: rgba(255, 123, 103, 0.6); background: rgba(255, 123, 103, 0.1); color: #f7c1b9; }
 
 .receipt-panel {
   display: grid;
@@ -360,6 +374,7 @@
 @media (max-width: 540px) {
   .workspace-topbar,
   .workspace-footer { align-items: flex-start; flex-direction: column; padding-block: 16px; }
+  .topbar-statuses { align-items: flex-start; flex-direction: column; }
   .campaign-workspace h1 { font-size: 3.1rem; }
   .brief-facts,
   .asset-grid,

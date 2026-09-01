@@ -17,6 +17,7 @@ import {
   REPLACEMENT_ASSET_ID,
   type DemoWorkflowState,
 } from "@/server/seed/demo-scenario";
+import { useCampaignTools } from "@/webmcp/use-campaign-tools";
 
 interface CampaignWorkspaceProps {
   campaignId: string;
@@ -41,6 +42,7 @@ export function CampaignWorkspace({ campaignId }: CampaignWorkspaceProps) {
     const nextState = await readJson<DemoWorkflowState>(response);
     setState(nextState);
   }, []);
+  const campaignTools = useCampaignTools(state, refresh);
 
   useEffect(() => {
     let active = true;
@@ -118,13 +120,31 @@ export function CampaignWorkspace({ campaignId }: CampaignWorkspaceProps) {
     <main className="campaign-workspace">
       <header className="workspace-topbar">
         <a className="wordmark" href={`/campaign/${state.campaign.id}`}>RIGHTS/OPS</a>
-        <div className="topbar-state">
-          <span className={`status-light status-light--${authorization.tone}`} />
-          Server authority: {state.campaign.status.replace("_", " ")}
+        <div className="topbar-statuses">
+          <div className="topbar-state">
+            <span className={`status-light status-light--${authorization.tone}`} />
+            Server authority: {state.campaign.status.replace("_", " ")}
+          </div>
+          <span className={`webmcp-status webmcp-status--${campaignTools.availability}`}>
+            WebMCP: {campaignTools.availability}
+          </span>
         </div>
       </header>
 
       <CampaignBrief campaign={state.campaign} />
+      {campaignTools.availability === "unavailable" ? (
+        <div className="webmcp-compatibility" role="status">
+          <strong>WebMCP unavailable in this browser.</strong> The complete human
+          workflow remains active; open the same page in a WebMCP-enabled target
+          client to expose agent tools.
+        </div>
+      ) : null}
+      {campaignTools.availability === "error" ? (
+        <div className="webmcp-compatibility webmcp-compatibility--error" role="alert">
+          <strong>WebMCP synchronization failed.</strong>{" "}
+          {campaignTools.error ?? "The human workflow remains available."}
+        </div>
+      ) : null}
       {error ? <div className="workspace-error" role="alert"><strong>Operation rejected.</strong> {error}</div> : null}
       {pendingAction ? <div className="workspace-progress" role="status">Running {pendingAction}…</div> : null}
 
