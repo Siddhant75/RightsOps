@@ -2,6 +2,7 @@ import { evaluateRights } from "@/domain/rights/evaluate-rights";
 import type {
   Asset,
   Campaign,
+  CampaignManifest,
   CampaignStatus,
   RightsFailureReason,
 } from "@/domain/types";
@@ -19,6 +20,12 @@ const REASON_LABELS: Record<RightsFailureReason, string> = {
 export interface AssetEvidence {
   eligible: boolean;
   reasonLabels: string[];
+}
+
+export interface AssetProofDelta {
+  currentVersion: number;
+  recordedVersion: number;
+  stale: boolean;
 }
 
 export interface AuthorizationSummary {
@@ -39,6 +46,21 @@ export function getAssetEvidence(
   return {
     eligible: evaluation.eligible,
     reasonLabels: evaluation.reasons.map((reason) => REASON_LABELS[reason]),
+  };
+}
+
+export function getAssetProofDelta(
+  asset: Asset,
+  manifest: CampaignManifest | null,
+): AssetProofDelta | null {
+  const proof = manifest?.proofs.find((candidate) => candidate.assetId === asset.id);
+
+  if (!proof) return null;
+
+  return {
+    currentVersion: asset.rightsVersion,
+    recordedVersion: proof.rightsVersion,
+    stale: asset.rightsVersion !== proof.rightsVersion,
   };
 }
 

@@ -1,13 +1,14 @@
-import type { Asset, Campaign } from "@/domain/types";
+import type { Asset, Campaign, CampaignManifest } from "@/domain/types";
 import { AssetCard } from "@/components/campaign/AssetCard";
 
 interface AssetGridProps {
   assets: Asset[];
   campaign: Campaign;
+  manifest: CampaignManifest | null;
   selectedAssetIds: string[];
 }
 
-export function AssetGrid({ assets, campaign, selectedAssetIds }: AssetGridProps) {
+export function AssetGrid({ assets, campaign, manifest, selectedAssetIds }: AssetGridProps) {
   return (
     <section className="workspace-section" aria-labelledby="asset-heading">
       <div className="section-heading">
@@ -23,6 +24,7 @@ export function AssetGrid({ assets, campaign, selectedAssetIds }: AssetGridProps
             asset={asset}
             campaign={campaign}
             key={asset.id}
+            manifest={manifest}
             selected={selectedAssetIds.includes(asset.id)}
           />
         ))}

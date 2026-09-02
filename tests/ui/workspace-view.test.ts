@@ -11,6 +11,7 @@ import {
 } from "@/server/seed/demo-scenario";
 import {
   getAssetEvidence,
+  getAssetProofDelta,
   getAuthorizationSummary,
   getRecommendedManifestAssetIds,
 } from "@/components/campaign/workspace-view";
@@ -108,5 +109,31 @@ describe("campaign workspace view state", () => {
       "asset-train",
       "asset-market",
     ]);
+  });
+
+  it("exposes the recorded-to-current proof delta only when evidence is stale", () => {
+    const state = createDemoScenario(NOW);
+    setManifest(state, [...INITIAL_SELECTED_ASSET_IDS]);
+    const sakura = state.assets.find(
+      (asset) => asset.id === REVOCABLE_ASSET_ID,
+    );
+
+    expect(sakura).toBeDefined();
+    expect(getAssetProofDelta(sakura!, state.currentManifest)).toEqual({
+      currentVersion: 1,
+      recordedVersion: 1,
+      stale: false,
+    });
+
+    revokeSelectedAsset(state);
+
+    expect(getAssetProofDelta(sakura!, state.currentManifest)).toEqual({
+      currentVersion: 2,
+      recordedVersion: 1,
+      stale: true,
+    });
+    expect(
+      getAssetProofDelta(state.assets[3], state.currentManifest),
+    ).toBeNull();
   });
 });

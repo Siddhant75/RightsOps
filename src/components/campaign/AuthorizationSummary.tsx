@@ -6,7 +6,12 @@ interface AuthorizationSummaryProps {
 
 export function AuthorizationSummary({ summary }: AuthorizationSummaryProps) {
   return (
-    <section className={`authorization authorization--${summary.tone}`} aria-labelledby="authorization-heading">
+    <section
+      aria-atomic="true"
+      aria-labelledby="authorization-heading"
+      aria-live="polite"
+      className={`authorization authorization--${summary.tone}`}
+    >
       <div>
         <p className="workspace-kicker">Authorization</p>
         <h2 id="authorization-heading">{summary.label}</h2>

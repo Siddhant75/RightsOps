@@ -33,34 +33,57 @@ async function readJson<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
+async function fetchDemoState(signal?: AbortSignal) {
+  const response = await fetch("/api/demo/state", {
+    cache: "no-store",
+    signal,
+  });
+  return readJson<DemoWorkflowState>(response);
+}
+
 export function CampaignWorkspace({ campaignId }: CampaignWorkspaceProps) {
   const [state, setState] = useState<DemoWorkflowState | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadingState, setLoadingState] = useState(true);
 
   const refresh = useCallback(async () => {
-    const response = await fetch("/api/demo/state", { cache: "no-store" });
-    const nextState = await readJson<DemoWorkflowState>(response);
-    setState(nextState);
+    setState(await fetchDemoState());
   }, []);
   const campaignTools = useCampaignTools(state, refresh);
 
-  useEffect(() => {
-    let active = true;
+  const loadState = useCallback(async (signal?: AbortSignal) => {
+    setLoadingState(true);
+    setError(null);
+    try {
+      const nextState = await fetchDemoState(signal);
+      if (!signal?.aborted) setState(nextState);
+    } catch (reason) {
+      if (!signal?.aborted) {
+        setError(reason instanceof Error ? reason.message : String(reason));
+      }
+    } finally {
+      if (!signal?.aborted) setLoadingState(false);
+    }
+  }, []);
 
-    fetch("/api/demo/state", { cache: "no-store" })
-      .then((response) => readJson<DemoWorkflowState>(response))
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchDemoState(controller.signal)
       .then((nextState) => {
-        if (active) setState(nextState);
+        if (!controller.signal.aborted) setState(nextState);
       })
       .catch((reason: unknown) => {
-        if (active) {
+        if (!controller.signal.aborted) {
           setError(reason instanceof Error ? reason.message : String(reason));
         }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingState(false);
       });
 
     return () => {
-      active = false;
+      controller.abort();
     };
   }, []);
 
@@ -93,14 +116,21 @@ export function CampaignWorkspace({ campaignId }: CampaignWorkspaceProps) {
 
   if (!state) {
     return (
-      <main className="campaign-workspace campaign-workspace--loading">
-        <div className="loading-card">
+      <main
+        aria-busy={loadingState}
+        className="campaign-workspace campaign-workspace--loading"
+      >
+        <div aria-live="polite" className="loading-card" role="status">
           <p className="workspace-kicker">RightsOps</p>
           <h1>{error ? "Workspace unavailable" : "Loading campaign authority…"}</h1>
           {error ? <p role="alert">{error}</p> : null}
           {error ? (
-            <button className="workspace-button workspace-button--primary" onClick={() => runAction("reset", "/api/demo/reset")} type="button">
-              Initialize deterministic demo
+            <button
+              className="workspace-button workspace-button--primary"
+              onClick={() => void loadState()}
+              type="button"
+            >
+              Retry campaign load
             </button>
           ) : null}
         </div>
@@ -165,6 +195,7 @@ export function CampaignWorkspace({ campaignId }: CampaignWorkspaceProps) {
           <AssetGrid
             assets={state.assets}
             campaign={state.campaign}
+            manifest={manifest}
             selectedAssetIds={manifest?.assetIds ?? recommendation}
           />
         </div>

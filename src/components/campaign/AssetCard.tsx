@@ -1,15 +1,29 @@
-import type { Asset, Campaign } from "@/domain/types";
+import Image from "next/image";
+
+import type { Asset, Campaign, CampaignManifest } from "@/domain/types";
 import { RightsPanel } from "@/components/campaign/RightsPanel";
-import { getAssetEvidence } from "@/components/campaign/workspace-view";
+import {
+  getAssetEvidence,
+  getAssetProofDelta,
+} from "@/components/campaign/workspace-view";
 
 interface AssetCardProps {
   asset: Asset;
   campaign: Campaign;
+  manifest: CampaignManifest | null;
   selected: boolean;
 }
 
-export function AssetCard({ asset, campaign, selected }: AssetCardProps) {
+export function AssetCard({ asset, campaign, manifest, selected }: AssetCardProps) {
   const evidence = getAssetEvidence(asset, campaign);
+  const proofDelta = getAssetProofDelta(asset, manifest);
+  const visualLabel = proofDelta?.stale
+    ? `PROOF STALE · v${proofDelta.recordedVersion} → v${proofDelta.currentVersion}`
+    : selected
+      ? "In manifest"
+      : evidence.eligible
+        ? "Available"
+        : "Blocked";
 
   return (
     <article
@@ -17,8 +31,16 @@ export function AssetCard({ asset, campaign, selected }: AssetCardProps) {
         evidence.eligible ? "" : "asset-card--blocked"
       }`}
     >
-      <div className="asset-visual" data-asset={asset.id} aria-hidden="true">
-        <span>{selected ? "In manifest" : evidence.eligible ? "Available" : "Blocked"}</span>
+      <div className="asset-visual">
+        <Image
+          alt={`${asset.title} synthetic campaign preview`}
+          fill
+          sizes="(max-width: 540px) 100vw, (max-width: 1120px) 50vw, 25vw"
+          src={asset.thumbnailUrl}
+        />
+        <span className={proofDelta?.stale ? "proof-stale-badge" : ""}>
+          {visualLabel}
+        </span>
       </div>
       <div className="asset-copy">
         <div className="asset-heading">

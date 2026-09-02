@@ -1,4 +1,5 @@
 import type { Asset, CampaignManifest, CampaignStatus } from "@/domain/types";
+import { getAssetProofDelta } from "@/components/campaign/workspace-view";
 
 interface ManifestReviewProps {
   assets: Asset[];
@@ -21,6 +22,11 @@ export function ManifestReview({
 }: ManifestReviewProps) {
   const manifestAssets =
     manifest?.assetIds.map((assetId) => assets.find((asset) => asset.id === assetId)) ?? [];
+  const staleEntries = manifestAssets.flatMap((asset) => {
+    if (!asset) return [];
+    const delta = getAssetProofDelta(asset, manifest);
+    return delta?.stale ? [{ asset, delta }] : [];
+  });
 
   return (
     <section className={`manifest-panel ${campaignStatus === "STALE" ? "manifest-panel--stale" : ""}`} aria-labelledby="manifest-heading">
@@ -42,13 +48,21 @@ export function ManifestReview({
       ) : (
         <>
           <ol className="manifest-list">
-            {manifestAssets.map((asset, index) => (
-              <li key={manifest.assetIds[index]}>
+            {manifestAssets.map((asset, index) => {
+              const proofDelta = asset ? getAssetProofDelta(asset, manifest) : null;
+              return (
+              <li className={proofDelta?.stale ? "manifest-list-item--stale" : ""} key={manifest.assetIds[index]}>
                 <span>{String(index + 1).padStart(2, "0")}</span>
-                <strong>{asset?.title ?? manifest.assetIds[index]}</strong>
-                <code>v{manifest.proofs[index]?.rightsVersion ?? "?"}</code>
+                <span className="manifest-asset-name">
+                  <strong>{asset?.title ?? manifest.assetIds[index]}</strong>
+                  {proofDelta?.stale ? (
+                    <small>PROOF STALE · v{proofDelta.recordedVersion} → v{proofDelta.currentVersion}</small>
+                  ) : null}
+                </span>
+                <code>proof v{manifest.proofs[index]?.rightsVersion ?? "?"}</code>
               </li>
-            ))}
+              );
+            })}
           </ol>
           <dl className="manifest-meta">
             <div>
@@ -69,9 +83,14 @@ export function ManifestReview({
             </div>
           ) : null}
           {campaignStatus === "STALE" ? (
-            <p className="stale-warning">
-              Approval authority removed. A selected asset no longer matches its recorded proof version.
-            </p>
+            <div className="stale-warning" role="status">
+              <strong>Publish authority removed: authorization evidence became stale.</strong>
+              {staleEntries.map(({ asset, delta }) => (
+                <p key={asset.id}>
+                  {asset.title} changed after review: recorded proof v{delta.recordedVersion}, current rights v{delta.currentVersion}.
+                </p>
+              ))}
+            </div>
           ) : null}
         </>
       )}

@@ -22,8 +22,11 @@ export function DemoControls({
   return (
     <section className="demo-controls" aria-labelledby="demo-controls-heading">
       <div>
-        <p className="workspace-kicker">Guided proof loop</p>
-        <h2 id="demo-controls-heading">Next operation</h2>
+        <p className="workspace-kicker">Seeded workflow actions</p>
+        <h2 id="demo-controls-heading">Demo controls</h2>
+        <p className="control-note">
+          Use these deterministic controls to replay the proof loop for judges.
+        </p>
       </div>
       {status === "DRAFT" ? (
         <button className="workspace-button workspace-button--primary" disabled={pending} onClick={onPrepare} type="button">

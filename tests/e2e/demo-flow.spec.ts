@@ -31,6 +31,12 @@ interface HarnessModelContext extends EventTarget {
   ): Promise<void>;
 }
 
+interface EvidencePaths {
+  approved: string;
+  published: string;
+  stale: string;
+}
+
 async function installWebMcpHarness(page: Page) {
   await page.addInitScript(() => {
     const registered = new Map<string, HarnessTool>();
@@ -134,9 +140,18 @@ async function expectScopeDisclaimer(page: Page) {
   ).toBeVisible();
 }
 
-async function runGoldenDemo(page: Page) {
+async function capturePausedFrame(page: Page, path: string, selector: string) {
+  await page.locator(selector).scrollIntoViewIfNeeded();
+  await page.screenshot({
+    animations: "disabled",
+    path,
+  });
+}
+
+async function runGoldenDemo(page: Page, evidencePaths?: EvidencePaths) {
   const browserErrors = captureBrowserErrors(page);
 
+  await page.setViewportSize({ height: 1000, width: 1440 });
   await installWebMcpHarness(page);
   await page.goto(CAMPAIGN_PATH);
 
@@ -202,6 +217,9 @@ async function runGoldenDemo(page: Page) {
     ...ALWAYS_AVAILABLE_TOOLS,
     "publish_approved_campaign_manifest-1",
   ]);
+  if (evidencePaths) {
+    await capturePausedFrame(page, evidencePaths.approved, ".authorization");
+  }
 
   const withdrawalStartedAt = Date.now();
   await page.getByRole("button", { name: "Simulate rights update" }).click();
@@ -214,6 +232,9 @@ async function runGoldenDemo(page: Page) {
     "prepare_campaign_manifest",
   ]);
   expect(Date.now() - withdrawalStartedAt).toBeLessThan(12_000);
+  if (evidencePaths) {
+    await capturePausedFrame(page, evidencePaths.stale, ".authorization");
+  }
 
   const stale = await executeTool<{
     staleAssetIds: string[];
@@ -259,6 +280,9 @@ async function runGoldenDemo(page: Page) {
     "get_campaign_audit",
     "get_publish_receipt",
   ]);
+  if (evidencePaths) {
+    await capturePausedFrame(page, evidencePaths.published, ".receipt-panel");
+  }
 
   const receipt = await executeTool<{
     receipt: { manifestId: string };
@@ -298,8 +322,15 @@ test.describe.serial("JCM golden demo", () => {
   });
 
   for (const run of ["baseline", "fresh browser repeat"]) {
-    test(`completes the deterministic proof loop from a ${run}`, async ({ page }) => {
-      await runGoldenDemo(page);
+    test(`completes the deterministic proof loop from a ${run}`, async ({ page }, testInfo) => {
+      const evidencePaths = run === "baseline"
+        ? {
+            approved: testInfo.outputPath("phase-8-approved.png"),
+            published: testInfo.outputPath("phase-8-published.png"),
+            stale: testInfo.outputPath("phase-8-stale.png"),
+          }
+        : undefined;
+      await runGoldenDemo(page, evidencePaths);
     });
   }
 
@@ -334,6 +365,67 @@ test.describe.serial("JCM golden demo", () => {
     expect(browserErrors).toEqual([]);
   });
 
+  test("retries a failed campaign read without mutating server state", async ({ page }) => {
+    let stateReads = 0;
+    const pagePosts: string[] = [];
+
+    page.on("request", (request) => {
+      if (request.method() === "POST") pagePosts.push(request.url());
+    });
+    await page.route("**/api/demo/state", async (route) => {
+      stateReads += 1;
+      if (stateReads === 1) {
+        await route.fulfill({
+          body: JSON.stringify({ error: "Temporary campaign read failure" }),
+          contentType: "application/json",
+          status: 503,
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto(CAMPAIGN_PATH);
+    await expect(page.getByRole("heading", { name: "Workspace unavailable" })).toBeVisible();
+    await expect(page.getByText("Temporary campaign read failure", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Retry campaign load" }).click();
+
+    await expect(page.locator(".topbar-state")).toContainText("DRAFT");
+    await expect(page.getByText("No review manifest", { exact: true })).toBeVisible();
+    expect(pagePosts).toEqual([]);
+  });
+
+  test("supports keyboard focus and reduced-motion presentation", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(CAMPAIGN_PATH);
+
+    await expect(
+      page.getByRole("img", {
+        name: "Sakura crossing synthetic campaign preview",
+      }),
+    ).toBeVisible();
+    await page.keyboard.press("Tab");
+    const wordmark = page.getByRole("link", { name: "RIGHTS/OPS" });
+    await expect(wordmark).toBeFocused();
+    await expect
+      .poll(() => wordmark.evaluate((element) => getComputedStyle(element).outlineWidth))
+      .toBe("3px");
+
+    await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("button", { name: "Prepare eligible manifest" }),
+    ).toBeFocused();
+
+    const transitionDurations = await page.locator(".asset-card").first().evaluate(
+      (element) => getComputedStyle(element).transitionDuration,
+    );
+    expect(
+      transitionDurations
+        .split(", ")
+        .every((duration) => Number.parseFloat(duration) <= 0.00001),
+    ).toBe(true);
+  });
+
   test("reconstructs Approved, Stale, and Published capability surfaces after refresh", async ({ page }) => {
     const browserErrors = captureBrowserErrors(page);
     await installWebMcpHarness(page);
@@ -357,8 +449,10 @@ test.describe.serial("JCM golden demo", () => {
 
     await page.getByRole("button", { name: "Simulate rights update" }).click();
     await expect(page.locator(".topbar-state")).toContainText("STALE");
+    await expect(page.getByText("PROOF STALE · v1 → v2", { exact: true })).toHaveCount(2);
     await page.reload();
     await expect(page.locator(".topbar-state")).toContainText("STALE");
+    await expect(page.getByText("PROOF STALE · v1 → v2", { exact: true })).toHaveCount(2);
     await expectToolSurface(page, [
       ...ALWAYS_AVAILABLE_TOOLS,
       "inspect_stale_campaign",
