@@ -11,12 +11,16 @@ function isModelContextLike(value: unknown): value is ModelContextLike {
 
   const candidate = value as Partial<ModelContextLike>;
 
-  return (
-    typeof candidate.registerTool === "function" &&
-    typeof candidate.getTools === "function" &&
-    typeof candidate.addEventListener === "function" &&
-    typeof candidate.removeEventListener === "function"
-  );
+  return typeof candidate.registerTool === "function";
+}
+
+export function getObservationCapabilities(modelContext: ModelContextLike) {
+  return {
+    getTools: typeof modelContext.getTools === "function",
+    toolchange:
+      typeof modelContext.addEventListener === "function" &&
+      typeof modelContext.removeEventListener === "function",
+  };
 }
 
 export function getModelContext(

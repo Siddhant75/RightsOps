@@ -1,18 +1,54 @@
 import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import {
+  CapabilitySurface,
   getCapabilityToolBadges,
   getPublishAuthorityNarrative,
   getRecentRegistryEvidence,
   getVisibleObservedTools,
 } from "@/components/campaign/CapabilitySurface";
-import { getCampaignToolSurfaceKey } from "@/webmcp/use-campaign-tools";
+import {
+  getCampaignToolSurfaceKey,
+  type CampaignToolsStatus,
+} from "@/webmcp/use-campaign-tools";
+import { getAuthorizationSummary } from "@/components/campaign/workspace-view";
 import { createDemoScenario } from "@/server/seed/demo-scenario";
 import type { RegisteredTool } from "@/webmcp/registry";
 
 const NOW = "2026-09-01T00:00:00.000Z";
 
 describe("Capability Surface judge narrative", () => {
+  it.each(["unavailable", "error"] as const)("keeps registration available when enumeration is %s", (reconciliation) => {
+    const state = createDemoScenario(NOW);
+    const tools: CampaignToolsStatus = {
+      availability: "available",
+      error: null,
+      observation: { reconciliation, toolchange: false },
+      observedTools: [
+        { name: "unverified_tool", description: "Must not be displayed" },
+      ],
+      registryEvents: [],
+      synchronizedSurfaceKey: getCampaignToolSurfaceKey(state),
+      toolChangeEvents: [],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(CapabilitySurface, {
+        authorization: getAuthorizationSummary(state),
+        state,
+        tools,
+      }),
+    );
+
+    expect(html).toContain("capability-live--available");
+    expect(html).toContain("WebMCP registration is active");
+    expect(html).not.toContain("unverified_tool");
+    expect(html).not.toContain("document.modelContext.getTools()");
+    expect(html).toContain("toolchange observation unavailable");
+  });
+
   it("explains stale authority removal from server state, not telemetry", () => {
     const state = createDemoScenario(NOW);
     state.campaign.status = "STALE";

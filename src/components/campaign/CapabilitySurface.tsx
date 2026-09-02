@@ -116,11 +116,14 @@ export function CapabilitySurface({
   tools,
 }: CapabilitySurfaceProps) {
   const narrative = getPublishAuthorityNarrative(state);
-  const observedTools = getVisibleObservedTools(
-    state,
-    tools.observedTools,
-    tools.synchronizedSurfaceKey,
-  );
+  const enumerationAvailable = tools.observation.reconciliation === "available";
+  const observedTools = enumerationAvailable
+    ? getVisibleObservedTools(
+        state,
+        tools.observedTools,
+        tools.synchronizedSurfaceKey,
+      )
+    : [];
   const surfaceIsCurrent =
     tools.synchronizedSurfaceKey === getCampaignToolSurfaceKey(state);
   const displayedAvailability =
@@ -166,7 +169,11 @@ export function CapabilitySurface({
           <dd>
             {tools.availability === "unavailable"
               ? "Unavailable in this browser"
-              : "document.modelContext.getTools()"}
+              : enumerationAvailable
+                ? "document.modelContext.getTools()"
+                : tools.observation.reconciliation === "error"
+                  ? "Browser tool enumeration failed"
+                  : "Browser tool enumeration unavailable"}
           </dd>
         </div>
       </dl>
@@ -191,7 +198,9 @@ export function CapabilitySurface({
               ? "This browser does not expose WebMCP; the human workflow remains available."
               : !surfaceIsCurrent
                 ? "Reconciling browser tools for the current server state."
-              : "No browser tools have been reconciled yet."}
+                : !enumerationAvailable
+                  ? "WebMCP registration is active; optional tool enumeration is unavailable. Inspect the agent's Site Tools for callable capabilities."
+                  : "No browser tools have been reconciled yet."}
           </p>
         )}
       </div>
@@ -214,7 +223,9 @@ export function CapabilitySurface({
         <div>
           <span>Latest toolchange telemetry</span>
           <p>
-            {latestToolChange
+            {!tools.observation.toolchange
+              ? "Optional toolchange observation unavailable."
+              : latestToolChange
               ? describeRegistryEvent(latestToolChange)
               : "No toolchange event observed yet."}
           </p>

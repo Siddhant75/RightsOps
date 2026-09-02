@@ -10,6 +10,7 @@ import {
   type ModelContextTool,
   type RegisteredTool,
   type RegistryObservation,
+  type RegistryObservationStatus,
   type RegistryObserver,
 } from "@/webmcp/registry";
 import {
@@ -33,6 +34,7 @@ export type CampaignToolsAvailability =
 export interface CampaignToolsStatus {
   availability: CampaignToolsAvailability;
   error: string | null;
+  observation: RegistryObservationStatus;
   observedTools: RegisteredTool[];
   registryEvents: RegistryObservation[];
   synchronizedSurfaceKey: string | null;
@@ -92,6 +94,10 @@ export class CampaignToolCoordinator {
     this.registry = new WebMcpRegistry(modelContext, observer);
   }
 
+  get observationStatus(): RegistryObservationStatus {
+    return this.registry.observationStatus;
+  }
+
   synchronize(state: DemoWorkflowState): Promise<RegisteredTool[]> {
     const synchronize = () => this.synchronizeNow(state);
     this.synchronization = this.synchronization.then(synchronize, synchronize);
@@ -145,6 +151,7 @@ export function useCampaignTools(
   const [status, setStatus] = useState<CampaignToolsStatus>({
     availability: "checking",
     error: null,
+    observation: { reconciliation: "unavailable", toolchange: false },
     observedTools: [],
     registryEvents: [],
     synchronizedSurfaceKey: null,
@@ -160,6 +167,7 @@ export function useCampaignTools(
         setStatus({
           availability: "unavailable",
           error: null,
+          observation: { reconciliation: "unavailable", toolchange: false },
           observedTools: [],
           registryEvents: [],
           synchronizedSurfaceKey: null,
@@ -225,6 +233,7 @@ export function useCampaignTools(
           ...current,
           availability: "available",
           error: null,
+          observation: coordinator.observationStatus,
           observedTools,
           synchronizedSurfaceKey: getCampaignToolSurfaceKey(state),
         }));
@@ -235,6 +244,7 @@ export function useCampaignTools(
           ...current,
           availability: "error",
           error: formatError(error),
+          observation: coordinator.observationStatus,
           observedTools: [],
           synchronizedSurfaceKey: null,
         }));

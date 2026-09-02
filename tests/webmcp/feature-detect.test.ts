@@ -6,6 +6,12 @@ import {
 } from "../../src/webmcp/feature-detect";
 
 describe("getModelContext", () => {
+  it("accepts registerTool without optional enumeration or event APIs", () => {
+    const context = { registerTool: async () => undefined };
+
+    expect(getModelContext({ modelContext: context })).toBe(context);
+  });
+
   it("returns the WebMCP context only when the required API is available", () => {
     const context = {
       addEventListener: () => undefined,

@@ -7,6 +7,7 @@ import {
   WebMcpRegistry,
   type ModelContextTool,
   type RegisteredTool,
+  type RegistryObservationStatus,
 } from "@/webmcp/registry";
 
 const APPROVED_TOOL_NAME = "execute_approved_spike";
@@ -107,6 +108,10 @@ export default function WebMcpSpikePage() {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
   const [observedTools, setObservedTools] = useState<RegisteredTool[]>([]);
+  const [observation, setObservation] = useState<RegistryObservationStatus>({
+    reconciliation: "unavailable",
+    toolchange: false,
+  });
   const [spikeState, setSpikeState] = useState<SpikeState>(INITIAL_STATE);
   const eventId = useRef(0);
   const registryRef = useRef<WebMcpRegistry | null>(null);
@@ -168,16 +173,15 @@ export default function WebMcpSpikePage() {
       return;
     }
 
-    const registry = new WebMcpRegistry(modelContext);
+    const registry = new WebMcpRegistry(modelContext, (event) => {
+      if (!cancelled && event.kind === "toolchange") {
+        appendEvent(
+          "toolchange",
+          "Observed browser toolchange event (instrumentation only).",
+        );
+      }
+    });
     registryRef.current = registry;
-
-    const onToolChange: EventListener = () => {
-      appendEvent(
-        "toolchange",
-        "Observed browser toolchange event (instrumentation only).",
-      );
-    };
-    modelContext.addEventListener("toolchange", onToolChange);
 
     const initialize = async () => {
       try {
@@ -187,9 +191,10 @@ export default function WebMcpSpikePage() {
         );
         if (cancelled) return;
         setObservedTools(tools);
+        setObservation(registry.observationStatus);
         appendEvent(
           "registry",
-          "Registered get_spike_state and reconciled with document.modelContext.getTools().",
+          "Registered get_spike_state.",
         );
 
         if (restoredState.approved) {
@@ -198,9 +203,10 @@ export default function WebMcpSpikePage() {
           );
           if (cancelled) return;
           setObservedTools(tools);
+          setObservation(registry.observationStatus);
           appendEvent(
             "registry",
-            "Restored approved state, registered execute_approved_spike, and reconciled actual tools.",
+            "Restored approved state and registered execute_approved_spike.",
           );
         }
 
@@ -218,7 +224,6 @@ export default function WebMcpSpikePage() {
 
     return () => {
       cancelled = true;
-      modelContext.removeEventListener("toolchange", onToolChange);
       registry.dispose();
       registryRef.current = null;
     };
@@ -255,12 +260,13 @@ export default function WebMcpSpikePage() {
           )
         : await registry.unregister(APPROVED_TOOL_NAME);
       setObservedTools(tools);
+      setObservation(registry.observationStatus);
       setAvailability("available");
       appendEvent(
         "registry",
         approving
-          ? "Human approved: registered execute_approved_spike and reconciled actual tools."
-          : "Human revoked: aborted execute_approved_spike and reconciled actual tools.",
+          ? "Human approved: registered execute_approved_spike."
+          : "Human revoked: aborted execute_approved_spike.",
       );
     } catch (error) {
       const message = formatError(error);
@@ -298,10 +304,11 @@ export default function WebMcpSpikePage() {
       }
 
       setObservedTools(tools);
+      setObservation(registry.observationStatus);
       setAvailability("available");
       appendEvent(
         "registry",
-        "Synchronized the desired registrations and reconciled the displayed surface with document.modelContext.getTools().",
+        "Synchronized the desired registrations; attempted optional browser tool enumeration.",
       );
     } catch (error) {
       const message = formatError(error);
@@ -328,7 +335,7 @@ export default function WebMcpSpikePage() {
           <h1>Can the agent see authority change?</h1>
           <p className="lede">
             One read-only tool stays registered. Human approval exposes one
-            transient action; revocation removes it. The list below comes from
+            transient action; revocation removes it. When supported, the list below comes from
             <code> document.modelContext.getTools()</code>, not an app mirror.
           </p>
         </div>
@@ -404,7 +411,11 @@ export default function WebMcpSpikePage() {
           <div className="panel-heading">
             <div>
               <p className="panel-kicker">Observed capability surface</p>
-              <h2>{observedTools.length} actual tools</h2>
+              <h2>
+                {observation.reconciliation === "available"
+                  ? <>{observedTools.length} actual tools</>
+                  : "Browser enumeration unavailable"}
+              </h2>
             </div>
             <button
               className="text-button"
@@ -436,12 +447,18 @@ export default function WebMcpSpikePage() {
             </ul>
           ) : (
             <p className="empty-state">
-              No tools observed yet. In an unavailable client this is expected.
+              {availability === "available" && observation.reconciliation !== "available"
+                ? "WebMCP registration is active; optional browser enumeration is unavailable. Inspect the agent's Site Tools for callable capabilities."
+                : "No tools observed yet. In an unavailable client this is expected."}
             </p>
           )}
           <p className="source-note">
-            Source: same-origin <code>document.modelContext.getTools()</code>
-            after each resolved registration change.
+            {observation.reconciliation === "available" ? (
+              <>Source: same-origin <code>document.modelContext.getTools()</code>
+                {" "}after each resolved registration change.</>
+            ) : (
+              "Optional browser enumeration is unavailable; no observed tool list is claimed."
+            )}
           </p>
         </section>
 
@@ -470,6 +487,7 @@ export default function WebMcpSpikePage() {
           <p className="source-note">
             <code>toolchange</code> is logged as observation only. It never
             authorizes an action or drives the displayed tool list.
+            {!observation.toolchange && " Optional toolchange observation unavailable."}
           </p>
         </section>
 

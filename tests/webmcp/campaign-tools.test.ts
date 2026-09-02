@@ -291,6 +291,59 @@ describe("production WebMCP execution", () => {
 });
 
 describe("CampaignToolCoordinator", () => {
+  it("preserves the campaign lifecycle on a registerTool-only client", async () => {
+    const context = new FakeModelContext();
+    const draft = createState("DRAFT");
+    const coordinator = new CampaignToolCoordinator(
+      { registerTool: context.registerTool.bind(context) },
+      createDependencies(draft),
+    );
+
+    await expect(coordinator.synchronize(draft)).resolves.toEqual([]);
+    expect(coordinator.observationStatus).toEqual({
+      reconciliation: "unavailable",
+      toolchange: false,
+    });
+    expect([...context.tools.keys()].sort()).toEqual(
+      [...EXPECTED_ALWAYS, "prepare_campaign_manifest"].sort(),
+    );
+    const result = JSON.parse(
+      await context.tools.get("get_campaign_state")!.execute({}),
+    );
+    expect(result.campaign.status).toBe("DRAFT");
+
+    await coordinator.synchronize(createState("REVIEW_READY"));
+    expect([...context.tools.keys()].sort()).toEqual(EXPECTED_ALWAYS);
+    await coordinator.synchronize(createState("APPROVED"));
+    expect(context.tools.has("publish_approved_campaign_manifest-7")).toBe(true);
+
+    await coordinator.synchronize(createState("STALE"));
+    expect(context.tools.has("publish_approved_campaign_manifest-7")).toBe(false);
+    expect(context.tools.has("inspect_stale_campaign")).toBe(true);
+    expect(context.tools.has("prepare_campaign_manifest")).toBe(true);
+
+    const replacement = createState("REVIEW_READY");
+    replacement.currentManifest!.id = "manifest-8";
+    await coordinator.synchronize(replacement);
+    expect([...context.tools.keys()].sort()).toEqual(EXPECTED_ALWAYS);
+    replacement.campaign.status = "APPROVED";
+    replacement.currentManifest!.status = "APPROVED";
+    await coordinator.synchronize(replacement);
+    expect(context.tools.has("publish_approved_campaign_manifest-8")).toBe(true);
+
+    const published = createState("PUBLISHED");
+    published.currentManifest!.id = "manifest-8";
+    await coordinator.synchronize(published);
+    expect(context.tools.has("publish_approved_campaign_manifest-8")).toBe(false);
+    expect(context.tools.has("get_publish_receipt")).toBe(true);
+    expect(context.tools.has("get_campaign_audit")).toBe(true);
+    expect(
+      [...context.tools.keys()].some((name) => name.startsWith("approve")),
+    ).toBe(false);
+    coordinator.dispose();
+    expect(context.tools.size).toBe(0);
+  });
+
   it("forwards registry operations and browser toolchange as observation only", async () => {
     const context = new FakeModelContext();
     const draft = createState("DRAFT");

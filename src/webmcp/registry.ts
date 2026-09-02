@@ -1,3 +1,5 @@
+import { getObservationCapabilities } from "./feature-detect";
+
 export interface ToolAnnotations {
   readOnlyHint?: boolean;
   untrustedContentHint?: boolean;
@@ -32,10 +34,15 @@ export interface ModelContextLike {
   registerTool(
     tool: ModelContextTool,
     options?: { signal?: AbortSignal },
-  ): Promise<void>;
-  getTools(): Promise<RegisteredTool[]>;
-  addEventListener(type: "toolchange", listener: EventListener): void;
-  removeEventListener(type: "toolchange", listener: EventListener): void;
+  ): void | Promise<void>;
+  getTools?(): RegisteredTool[] | Promise<RegisteredTool[]>;
+  addEventListener?(type: "toolchange", listener: EventListener): void;
+  removeEventListener?(type: "toolchange", listener: EventListener): void;
+}
+
+export interface RegistryObservationStatus {
+  reconciliation: "available" | "unavailable" | "error";
+  toolchange: boolean;
 }
 
 export type RegistryObservationKind =
@@ -54,6 +61,7 @@ export type RegistryObserver = (event: RegistryObservation) => void;
 export class WebMcpRegistry {
   private readonly registrations = new Map<string, AbortController>();
   private readonly toolChangeListener: EventListener;
+  private readonly observation: RegistryObservationStatus;
 
   constructor(
     private readonly modelContext: ModelContextLike,
@@ -62,7 +70,23 @@ export class WebMcpRegistry {
     this.toolChangeListener = () => {
       this.observe("toolchange", null);
     };
-    this.modelContext.addEventListener("toolchange", this.toolChangeListener);
+    const capabilities = getObservationCapabilities(modelContext);
+    this.observation = {
+      reconciliation: capabilities.getTools ? "available" : "unavailable",
+      toolchange: false,
+    };
+    if (capabilities.toolchange) {
+      try {
+        this.modelContext.addEventListener!("toolchange", this.toolChangeListener);
+        this.observation.toolchange = true;
+      } catch {
+        // Optional telemetry must not prevent core tool registration.
+      }
+    }
+  }
+
+  get observationStatus(): RegistryObservationStatus {
+    return { ...this.observation };
   }
 
   has(name: string): boolean {
@@ -87,17 +111,8 @@ export class WebMcpRegistry {
       throw error;
     }
 
-    try {
-      const observedTools = await this.reconcile();
-      this.observe("registered", tool.name);
-      return observedTools;
-    } catch (error) {
-      if (this.registrations.get(tool.name) === controller) {
-        this.registrations.delete(tool.name);
-      }
-      controller.abort();
-      throw error;
-    }
+    this.observe("registered", tool.name);
+    return this.reconcile();
   }
 
   async unregister(name: string): Promise<RegisteredTool[]> {
@@ -113,14 +128,31 @@ export class WebMcpRegistry {
   }
 
   async reconcile(): Promise<RegisteredTool[]> {
-    return this.modelContext.getTools();
+    if (typeof this.modelContext.getTools !== "function") {
+      this.observation.reconciliation = "unavailable";
+      return [];
+    }
+
+    try {
+      const tools = await this.modelContext.getTools();
+      this.observation.reconciliation = "available";
+      return tools;
+    } catch {
+      // A failed observation must not revoke successfully registered tools.
+      this.observation.reconciliation = "error";
+      return [];
+    }
   }
 
   dispose(): void {
-    this.modelContext.removeEventListener(
-      "toolchange",
-      this.toolChangeListener,
-    );
+    if (this.observation.toolchange) {
+      try {
+        this.modelContext.removeEventListener!("toolchange", this.toolChangeListener);
+      } catch {
+        // Cleanup of optional telemetry must not prevent capability revocation.
+      }
+      this.observation.toolchange = false;
+    }
 
     for (const controller of this.registrations.values()) {
       controller.abort();

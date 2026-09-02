@@ -56,6 +56,65 @@ const readTool: ModelContextTool = {
 };
 
 describe("WebMcpRegistry", () => {
+  it("does not let unsupported event observation prevent registration or cleanup", async () => {
+    const context = new FakeModelContext();
+    const registry = new WebMcpRegistry({
+      registerTool: context.registerTool.bind(context),
+      getTools: context.getTools.bind(context),
+      addEventListener: () => {
+        throw new Error("events unsupported");
+      },
+      removeEventListener: () => {
+        throw new Error("events unsupported");
+      },
+    });
+
+    await registry.register(readTool);
+    expect((await context.getTools()).map((tool) => tool.name)).toEqual([
+      "get_spike_state",
+    ]);
+    expect(registry.observationStatus).toEqual({
+      reconciliation: "available",
+      toolchange: false,
+    });
+    registry.dispose();
+    await expect(context.getTools()).resolves.toEqual([]);
+  });
+
+  it("still disposes registrations when removing the telemetry listener throws", async () => {
+    const context = new FakeModelContext();
+    const registry = new WebMcpRegistry({
+      registerTool: context.registerTool.bind(context),
+      addEventListener: () => undefined,
+      removeEventListener: () => {
+        throw new Error("observation unavailable");
+      },
+    });
+    await registry.register(readTool);
+
+    expect(() => registry.dispose()).not.toThrow();
+    await expect(context.getTools()).resolves.toEqual([]);
+  });
+
+  it("registers and revokes tools without optional observation APIs", async () => {
+    const context = new FakeModelContext();
+    const registry = new WebMcpRegistry({
+      registerTool: context.registerTool.bind(context),
+    });
+
+    await expect(registry.register(readTool)).resolves.toEqual([]);
+    expect(registry.observationStatus).toEqual({
+      reconciliation: "unavailable",
+      toolchange: false,
+    });
+    expect((await context.getTools()).map((tool) => tool.name)).toEqual([
+      "get_spike_state",
+    ]);
+    await registry.unregister(readTool.name);
+    await expect(context.getTools()).resolves.toEqual([]);
+    registry.dispose();
+  });
+
   it("reports resolved registry operations separately from browser toolchange telemetry", async () => {
     const context = new FakeModelContext();
     const observations: RegistryObservation[] = [];
@@ -171,7 +230,7 @@ describe("WebMcpRegistry", () => {
     expect(registrationSignal?.aborted).toBe(true);
   });
 
-  it("fails closed when post-registration reconciliation fails", async () => {
+  it("keeps core registration active when optional reconciliation fails", async () => {
     let registrationSignal: AbortSignal | undefined;
     const context: ModelContextLike = {
       addEventListener: () => undefined,
@@ -185,12 +244,13 @@ describe("WebMcpRegistry", () => {
     };
     const registry = new WebMcpRegistry(context);
 
-    await expect(registry.register(readTool)).rejects.toThrow(
-      "observation unavailable",
-    );
+    await expect(registry.register(readTool)).resolves.toEqual([]);
 
+    expect(registrationSignal?.aborted).toBe(false);
+    expect(registry.has(readTool.name)).toBe(true);
+    expect(registry.observationStatus.reconciliation).toBe("error");
+    registry.dispose();
     expect(registrationSignal?.aborted).toBe(true);
-    expect(registry.has(readTool.name)).toBe(false);
   });
 
   it("can revoke a registration while registerTool is still pending", async () => {
@@ -230,7 +290,7 @@ describe("WebMcpRegistry", () => {
 
     expect(registrationSignal?.aborted).toBe(true);
     expect(registry.has(readTool.name)).toBe(false);
-    await expect(context.getTools()).resolves.toEqual([]);
+    await expect(context.getTools!()).resolves.toEqual([]);
   });
 
   it("keeps a tool revoked when reconciliation after unregister fails", async () => {
@@ -251,9 +311,7 @@ describe("WebMcpRegistry", () => {
     await registry.register(readTool);
     failObservation = true;
 
-    await expect(registry.unregister(readTool.name)).rejects.toThrow(
-      "observation unavailable",
-    );
+    await expect(registry.unregister(readTool.name)).resolves.toEqual([]);
 
     expect(registrationSignal?.aborted).toBe(true);
     expect(registry.has(readTool.name)).toBe(false);
