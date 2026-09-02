@@ -86,6 +86,54 @@ describe("server-authoritative publish flow", () => {
     });
   });
 
+  it.each(["REVIEW_READY", "APPROVED", "STALE", "PUBLISHED"] as const)(
+    "restores the exact deterministic baseline from partial %s state",
+    async (partialStatus) => {
+      await demoService.reset();
+      const manifest = await campaignService.prepareManifest(
+        CAMPAIGN_ID,
+        INITIAL_SELECTED_ASSET_IDS,
+      );
+
+      if (partialStatus !== "REVIEW_READY") {
+        await approvalService.approveManifest(manifest.id);
+      }
+      if (partialStatus === "STALE") {
+        await demoService.revokeAssetRights(REVOCABLE_ASSET_ID);
+      }
+      if (partialStatus === "PUBLISHED") {
+        await publishService.publishApprovedManifest(manifest.id);
+      }
+
+      expect((await demoService.getState()).campaign.status).toBe(partialStatus);
+
+      const reset = await demoService.reset();
+
+      expect(reset).toMatchObject({
+        auditEvents: [
+          {
+            actor: "SYSTEM",
+            id: "audit-1",
+            kind: "DEMO_RESET",
+          },
+        ],
+        campaign: { id: CAMPAIGN_ID, status: "DRAFT" },
+        currentManifest: null,
+        nextAuditSequence: 2,
+        nextManifestSequence: 1,
+        nextReceiptSequence: 1,
+        publishReceipt: null,
+      });
+      expect(reset.assets).toHaveLength(8);
+      expect(
+        reset.assets.find((asset) => asset.id === REVOCABLE_ASSET_ID),
+      ).toMatchObject({
+        rightsGrants: [{ status: "ACTIVE" }],
+        rightsVersion: 1,
+      });
+    },
+  );
+
   it("rejects stale publication, accepts a replacement approval once, and rejects replay", async () => {
     const resetState = await demoService.reset();
     expect(resetState).toMatchObject({

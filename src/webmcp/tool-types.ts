@@ -44,14 +44,34 @@ export async function requestJson<T>(
   fetcher: Fetcher = fetch,
 ): Promise<T> {
   const method = init.method ?? "GET";
-  const response = await fetcher(path, {
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-    cache: "no-store",
-    headers:
-      init.body === undefined ? undefined : { "content-type": "application/json" },
-    method,
-    signal: init.signal,
-  });
+  let response: Response;
+
+  try {
+    response = await fetcher(path, {
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      cache: "no-store",
+      headers:
+        init.body === undefined
+          ? undefined
+          : { "content-type": "application/json" },
+      method,
+      signal: init.signal,
+    });
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "name" in error &&
+      error.name === "AbortError"
+    ) {
+      throw error;
+    }
+
+    const cause = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `${method} ${path} failed before response: Unable to reach the RightsOps server. Check the connection and retry. Cause: ${cause}`,
+    );
+  }
   const text = await response.text();
   let payload: unknown = null;
 

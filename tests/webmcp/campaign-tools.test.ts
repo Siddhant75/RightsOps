@@ -265,6 +265,29 @@ describe("production WebMCP execution", () => {
       "POST /api/manifests/manifest-7/publish failed (409): Manifest is not approved: STALE",
     );
   });
+
+  it("adds method, route, and recovery guidance to ordinary network failures", async () => {
+    const fetcher = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+
+    await expect(
+      requestJson("/api/demo/state", {}, fetcher),
+    ).rejects.toThrow(
+      "GET /api/demo/state failed before response: Unable to reach the RightsOps server. Check the connection and retry. Cause: Failed to fetch",
+    );
+  });
+
+  it("preserves abort cancellation without converting it to a network failure", async () => {
+    const cancellation = new DOMException("The operation was aborted", "AbortError");
+    const fetcher = async () => {
+      throw cancellation;
+    };
+
+    await expect(
+      requestJson("/api/demo/state", {}, fetcher),
+    ).rejects.toBe(cancellation);
+  });
 });
 
 describe("CampaignToolCoordinator", () => {

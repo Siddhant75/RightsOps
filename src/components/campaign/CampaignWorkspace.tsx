@@ -133,6 +133,11 @@ export function CampaignWorkspace({ campaignId }: CampaignWorkspaceProps) {
       </header>
 
       <CampaignBrief campaign={state.campaign} />
+      <p className="workspace-scope-note">
+        Demo rights metadata is structured input for workflow authorization; this
+        project does not provide legal advice. Rights updates and publishing are
+        simulated.
+      </p>
       {campaignTools.availability === "unavailable" ? (
         <div className="webmcp-compatibility" role="status">
           <strong>WebMCP unavailable in this browser.</strong> The complete human

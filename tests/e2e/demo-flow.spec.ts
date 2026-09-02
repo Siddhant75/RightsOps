@@ -114,7 +114,7 @@ async function expectToolSurface(page: Page, expectedNames: string[]) {
     .toEqual([...expectedNames].sort());
 }
 
-async function runGoldenDemo(page: Page) {
+function captureBrowserErrors(page: Page): string[] {
   const browserErrors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error" || message.type() === "warning") {
@@ -122,6 +122,20 @@ async function runGoldenDemo(page: Page) {
     }
   });
   page.on("pageerror", (error) => browserErrors.push(`pageerror: ${error.message}`));
+  return browserErrors;
+}
+
+async function expectScopeDisclaimer(page: Page) {
+  await expect(
+    page.getByText(
+      "Demo rights metadata is structured input for workflow authorization; this project does not provide legal advice. Rights updates and publishing are simulated.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+}
+
+async function runGoldenDemo(page: Page) {
+  const browserErrors = captureBrowserErrors(page);
 
   await installWebMcpHarness(page);
   await page.goto(CAMPAIGN_PATH);
@@ -129,6 +143,7 @@ async function runGoldenDemo(page: Page) {
   const iconHref = await page.locator('link[rel~="icon"]').getAttribute("href");
   expect(iconHref).toMatch(/^\/icon\.svg(?:\?.*)?$/);
   expect((await page.request.get(iconHref!)).ok()).toBe(true);
+  await expectScopeDisclaimer(page);
 
   await expect(page.locator(".topbar-state")).toContainText("DRAFT");
   await expect(page.getByText("WebMCP: available", { exact: true })).toBeVisible();
@@ -287,4 +302,86 @@ test.describe.serial("JCM golden demo", () => {
       await runGoldenDemo(page);
     });
   }
+
+  test("keeps the complete human workflow usable without WebMCP", async ({ page }) => {
+    const browserErrors = captureBrowserErrors(page);
+    await page.goto(CAMPAIGN_PATH);
+
+    await expect(page.getByText("WebMCP: unavailable", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("WebMCP unavailable in this browser.", { exact: true }),
+    ).toBeVisible();
+    await expectScopeDisclaimer(page);
+
+    await page.getByRole("button", { name: "Prepare eligible manifest" }).click();
+    await expect(page.locator(".topbar-state")).toContainText("REVIEW READY");
+    await page.getByRole("button", { name: "Approve exact manifest" }).click();
+    await expect(page.locator(".topbar-state")).toContainText("APPROVED");
+    await page.getByRole("button", { name: "Simulate rights update" }).click();
+    await expect(page.locator(".topbar-state")).toContainText("STALE");
+    await page
+      .getByRole("button", { name: "Repair with eligible replacement" })
+      .click();
+    await expect(page.locator(".topbar-state")).toContainText("REVIEW READY");
+    await page.getByRole("button", { name: "Approve exact manifest" }).click();
+    await expect(page.locator(".topbar-state")).toContainText("APPROVED");
+    await page.getByRole("button", { name: "Simulate approved publish" }).click();
+    await expect(page.locator(".topbar-state")).toContainText("PUBLISHED");
+    await expect(page.getByRole("heading", { name: "Package accepted" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Reset deterministic demo" }).click();
+    await expect(page.locator(".topbar-state")).toContainText("DRAFT");
+    expect(browserErrors).toEqual([]);
+  });
+
+  test("reconstructs Approved, Stale, and Published capability surfaces after refresh", async ({ page }) => {
+    const browserErrors = captureBrowserErrors(page);
+    await installWebMcpHarness(page);
+    await page.goto(CAMPAIGN_PATH);
+    await expectToolSurface(page, [
+      ...ALWAYS_AVAILABLE_TOOLS,
+      "prepare_campaign_manifest",
+    ]);
+
+    await executeTool(page, "prepare_campaign_manifest", {
+      assetIds: INITIAL_ASSET_IDS,
+    });
+    await page.getByRole("button", { name: "Approve exact manifest" }).click();
+    await expect(page.locator(".topbar-state")).toContainText("APPROVED");
+    await page.reload();
+    await expect(page.locator(".topbar-state")).toContainText("APPROVED");
+    await expectToolSurface(page, [
+      ...ALWAYS_AVAILABLE_TOOLS,
+      "publish_approved_campaign_manifest-1",
+    ]);
+
+    await page.getByRole("button", { name: "Simulate rights update" }).click();
+    await expect(page.locator(".topbar-state")).toContainText("STALE");
+    await page.reload();
+    await expect(page.locator(".topbar-state")).toContainText("STALE");
+    await expectToolSurface(page, [
+      ...ALWAYS_AVAILABLE_TOOLS,
+      "inspect_stale_campaign",
+      "prepare_campaign_manifest",
+    ]);
+
+    await executeTool(page, "prepare_campaign_manifest", {
+      assetIds: REPLACEMENT_ASSET_IDS,
+    });
+    await page.getByRole("button", { name: "Approve exact manifest" }).click();
+    await expect(page.locator(".topbar-state")).toContainText("APPROVED");
+    await executeTool(page, "publish_approved_campaign_manifest-2");
+    await expect(page.locator(".topbar-state")).toContainText("PUBLISHED");
+    await page.reload();
+    await expect(page.locator(".topbar-state")).toContainText("PUBLISHED");
+    await expectToolSurface(page, [
+      ...ALWAYS_AVAILABLE_TOOLS,
+      "get_campaign_audit",
+      "get_publish_receipt",
+    ]);
+
+    await page.getByRole("button", { name: "Reset deterministic demo" }).click();
+    await expect(page.locator(".topbar-state")).toContainText("DRAFT");
+    expect(browserErrors).toEqual([]);
+  });
 });
