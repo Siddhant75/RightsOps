@@ -7,19 +7,26 @@ site withdraws the agent's publish capability until the campaign is repaired
 and explicitly approved again.
 
 **Live demo:**
-[webmcp-rightsops-phase0.vercel.app](https://webmcp-rightsops-phase0.vercel.app/campaign/campaign-japan-social)
+[Open RightsOps](https://webmcp-rightsops-phase0.vercel.app/campaign/campaign-japan-social)
+
+**Video:** [Watch the 2:50 demo on YouTube](https://youtu.be/Ie_SSwNdAVM)
 
 > Demo rights metadata is structured input for workflow authorization; this
 > project does not provide legal advice. Rights updates and social publication
 > are simulated. The WebMCP lifecycle, server validation, human approval,
 > stale-proof rejection, and one-shot capability consumption are real.
 
-## The proof in three frames
+## The moment authority disappears
 
-| Approved | Authorization becomes stale | Published after repair |
-|---|---|---|
-| [![Approved manifest with exact publish authority](docs/evidence/phase-8-approved.png)](docs/evidence/phase-8-approved.png) | [![Stale manifest with publish authority withdrawn](docs/evidence/phase-8-stale.png)](docs/evidence/phase-8-stale.png) | [![Published campaign with receipt and audit trail](docs/evidence/phase-8-published.png)](docs/evidence/phase-8-published.png) |
-| Human approved one exact manifest; its parameterless publish tool is visible. | One proof changes from v1 to v2, authorization falls from 3/3 to 2/3, and publish disappears. | The agent repairs the manifest, the human re-approves, and one-shot publication produces a server receipt. |
+[![Stale manifest: authorization falls from 3/3 to 2/3 and publish authority is withdrawn](docs/evidence/phase-8-stale.png)](docs/evidence/phase-8-stale.png)
+
+One selected asset's evidence changes from v1 to v2. The approved proof is now
+stale: authorization falls from **3/3 to 2/3**, and the publish tool disappears.
+Repair and exact human reapproval are required before publication.
+
+Supporting Phase 8 frames: [Approved authority](docs/evidence/phase-8-approved.png)
+→ [Stale withdrawal](docs/evidence/phase-8-stale.png)
+→ [Published receipt and audit](docs/evidence/phase-8-published.png).
 
 ## Why WebMCP is necessary
 
@@ -44,10 +51,11 @@ and human-owned.
 ## Three-minute judge path
 
 1. Open the [campaign workspace](https://webmcp-rightsops-phase0.vercel.app/campaign/campaign-japan-social)
-   in ChatGPT's WebMCP-capable in-app browser or Chrome 149+ with WebMCP testing
-   enabled.
-2. Ask the agent to inspect the campaign, find three eligible assets, and
-   prepare the manifest.
+   in a WebMCP-capable client with Site Tools enabled. Under **Demo controls**,
+   use **Reset deterministic demo** to start a fresh run. Reset replaces the shared demo state;
+   do not reset during another person's demonstration.
+2. Give the agent the starter prompt below. It inspects the campaign, finds
+   eligible assets, and prepares the initial manifest, stopping for your review.
 3. Click **Approve exact campaign**. Observe the exact
    `publish_approved_campaign_manifest-<id>` tool appear.
 4. Under **Demo controls**, trigger the rights update. Observe
@@ -58,8 +66,27 @@ and human-owned.
 7. Observe the server-generated receipt, causal audit trail, and consumed tool
    removal.
 
-The complete timed narration is in
+Copy-paste starter prompt:
+
+```text
+Using only RightsOps Site Tools, get the current campaign, list the assets,
+inspect asset-sakura, and find assets eligible for the current campaign.
+If asset-sakura, asset-neon, and asset-train are eligible, prepare the exact
+three-asset manifest with those assets. Otherwise explain the mismatch and stop.
+Report the result and wait for my review. Do not approve or publish anything.
+```
+
+`registerTool` support is sufficient for agent tools. In-page tool enumeration
+and event observation are optional; clients without them show unavailable
+observability, not an inferred tool inventory. Use the agent's own discovery
+surface to inspect its actual callable tools.
+
+The original recording plan is in
 [docs/submission/demo-runbook.md](docs/submission/demo-runbook.md).
+The final video edit combines recorded application footage with labelled original
+Site Tools history. It does not film every agent-side discovery refresh or the
+repair execution live. The separate Phase 8 evidence documents native technical
+verification; screenshots alone are not proof of dynamic behavior.
 
 ## Architecture
 
@@ -107,11 +134,13 @@ stateDiagram-v2
 RightsOps uses the direct Imperative API through
 `document.modelContext.registerTool(...)`:
 
-- [`src/webmcp/feature-detect.ts`](src/webmcp/feature-detect.ts) feature-detects
-  the browser API and keeps the human workflow usable when it is unavailable.
+- [`src/webmcp/feature-detect.ts`](src/webmcp/feature-detect.ts) enables core
+  WebMCP whenever `document.modelContext.registerTool` exists and keeps the
+  human workflow usable when it is unavailable.
 - [`src/webmcp/registry.ts`](src/webmcp/registry.ts) binds every registration to
   an `AbortController`, unregisters by aborting that signal, and reconciles the
-  observed surface with `document.modelContext.getTools()`.
+  observed surface with `document.modelContext.getTools()` when available.
+  Missing enumeration never disables registration or produces a fake tool list.
 - [`src/webmcp/use-campaign-tools.ts`](src/webmcp/use-campaign-tools.ts)
   derives the desired tool set from server state. `toolchange` is telemetry
   only; it never drives authorization or workflow state.
@@ -131,30 +160,41 @@ manifest binding, and one-shot consumption. Removing a client tool improves the
 agent experience; it is not the only security control.
 
 More detail is available in [docs/03_ARCHITECTURE.md](docs/03_ARCHITECTURE.md)
-and the judge-facing
-[proof architecture](docs/07_PRIZE_PROOF_RETROFIT.md#proof-architecture).
+and the [proof architecture and historical design rationale](docs/07_PRIZE_PROOF_RETROFIT.md#proof-architecture).
 
 ## Local setup
 
 ### Prerequisites
 
-- Node.js 20 or newer
+- Node.js **20.19+ (20.x), 22.12+ (22.x), or 24+**. Next.js itself requires
+  `>=20.9.0`, but the locked Vite/Vitest test stack needs the higher versions
+  listed here. This cleanup was verified on Node 22.14.0.
 - npm 10 or newer
-- a PostgreSQL-compatible database; the deployed demo uses managed Postgres
+- a dedicated **Neon Postgres** development database. The runtime uses Neon's
+  HTTP driver; a plain local PostgreSQL URL alone is not sufficient.
 
 ### Run the project
 
 ```bash
-npm install
+npm ci
+cp .env.example .env
 ```
 
-Create `.env.local` without committing it:
+On PowerShell, use `Copy-Item .env.example .env` for the copy command. Edit `.env`
+with your development database's connection string without committing it:
 
 ```dotenv
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
 ```
 
-Apply the checked-in schema and start the development server:
+Use `.env`, not `.env.local`, so both Next.js and the Drizzle CLI load the same
+configuration. The checked-in Drizzle CLI already loads `.env` automatically.
+If upgrading an existing checkout, reconcile any old `DATABASE_URL` in
+`.env.local` (or environment-specific env files) first: those values override
+`.env` in Next.js but are not loaded by the Drizzle CLI. An exported shell
+`DATABASE_URL` also takes precedence. Confirm both commands target your
+development database before pushing the schema or resetting demo data.
+Apply the schema to that dedicated database and start the development server:
 
 ```bash
 npm run db:push
@@ -163,7 +203,9 @@ npm run dev
 
 Open
 [`http://localhost:3000/campaign/campaign-japan-social`](http://localhost:3000/campaign/campaign-japan-social).
-The deterministic reset action seeds the complete eight-asset scenario.
+Click **Demo controls → Reset deterministic demo** to seed the complete eight-asset scenario.
+Schema push changes the configured database; reset replaces its demo workflow
+data. Never point local setup or tests at the shared production database.
 
 ## Verification
 
@@ -175,8 +217,10 @@ npm run build
 npm run test:e2e
 ```
 
-The database-backed integration suite runs when `DATABASE_URL` is present and
-is explicitly skipped otherwise. Playwright builds and starts the production
+The database-backed integration suite runs when `DATABASE_URL` is present in
+the test process and is explicitly skipped otherwise. Vitest does not load
+`.env` automatically. This suite resets and mutates its configured database;
+use only a disposable development/test database. Playwright builds and starts the production
 application, exercises the human fallback path, and verifies Approved, Stale,
 Published, refresh-reconstruction, reset, and error states. Native target-client
 WebMCP evidence is recorded separately because Playwright is regression proof,

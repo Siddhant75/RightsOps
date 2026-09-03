@@ -223,7 +223,6 @@ export function CampaignWorkspace({ campaignId }: CampaignWorkspaceProps) {
       <AuditTimeline events={state.auditEvents} />
       <footer className="workspace-footer">
         <span>Human workflow active</span>
-        <a href="/webmcp-spike">Phase 0 compatibility spike</a>
       </footer>
     </main>
   );

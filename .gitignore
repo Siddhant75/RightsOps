@@ -9,3 +9,16 @@ test-results/
 *.tsbuildinfo
 .env*
 !.env.example
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+# Raw captures, private chat evidence, and local editing/export artifacts.
+demo-video/
