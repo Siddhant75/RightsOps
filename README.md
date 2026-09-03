@@ -81,10 +81,9 @@ and event observation are optional; clients without them show unavailable
 observability, not an inferred tool inventory. Use the agent's own discovery
 surface to inspect its actual callable tools.
 
-The final video edit combines recorded application footage with labelled original
-Site Tools history. It does not film every agent-side discovery refresh or the
-repair execution live. The three screenshots illustrate application states;
-screenshots alone are not proof of dynamic tool discovery or execution.
+The demo uses labelled original Site Tools history for readable agent-side
+evidence. The full live WebMCP lifecycle is reproducible through the judge path
+above.
 
 ## Architecture
 
