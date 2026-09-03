@@ -81,12 +81,10 @@ and event observation are optional; clients without them show unavailable
 observability, not an inferred tool inventory. Use the agent's own discovery
 surface to inspect its actual callable tools.
 
-The original recording plan is in
-[docs/submission/demo-runbook.md](docs/submission/demo-runbook.md).
 The final video edit combines recorded application footage with labelled original
 Site Tools history. It does not film every agent-side discovery refresh or the
-repair execution live. The separate Phase 8 evidence documents native technical
-verification; screenshots alone are not proof of dynamic behavior.
+repair execution live. The three screenshots illustrate application states;
+screenshots alone are not proof of dynamic tool discovery or execution.
 
 ## Architecture
 
@@ -159,9 +157,6 @@ The server independently verifies exact approval, current proof versions,
 manifest binding, and one-shot consumption. Removing a client tool improves the
 agent experience; it is not the only security control.
 
-More detail is available in [docs/03_ARCHITECTURE.md](docs/03_ARCHITECTURE.md)
-and the [proof architecture and historical design rationale](docs/07_PRIZE_PROOF_RETROFIT.md#proof-architecture).
-
 ## Local setup
 
 ### Prerequisites
@@ -226,9 +221,11 @@ Published, refresh-reconstruction, reset, and error states. Native target-client
 WebMCP evidence is recorded separately because Playwright is regression proof,
 not a substitute for a WebMCP-capable client.
 
-See the current [submission-package verification](docs/evidence/phase-9-verification.md)
-and the underlying
-[native WebMCP verification](docs/evidence/phase-8-verification.md).
+The checked-in tests cover rights evaluation, exact manifest binding, human
+approval boundaries, stale-evidence rejection, one-shot consumption and clients
+with registration but no optional observation APIs. For live client verification,
+follow the judge path above and inspect the agent's actual discovered tools after
+each transition; do not infer that surface from a screenshot or a test harness.
 
 ## Technology
 

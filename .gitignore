@@ -22,3 +22,29 @@ Thumbs.db
 .vscode/
 # Raw captures, private chat evidence, and local editing/export artifacts.
 demo-video/
+
+# Local agent instructions, planning, submission drafts and raw evidence.
+/AGENTS.md
+/CLAUDE.md
+/PROMPTS.md
+/.agents/
+/.codex/
+/.claude/
+/.worktrees/
+/private-backups/
+/docs/*
+!/docs/evidence/
+/docs/evidence/*
+!/docs/evidence/phase-8-approved.png
+!/docs/evidence/phase-8-stale.png
+!/docs/evidence/phase-8-published.png
+
+# Local credential stores and additional private-key formats.
+.npmrc
+.netrc
+.git-credentials
+id_rsa
+id_ed25519
+*.p8
+*.jks
+*.keystore
